@@ -13,7 +13,7 @@
 #include <hook/UnixFileSystemHook.h>
 #include "DexDump.h"
 #include "utils/HexDump.h"
-#import "xhook/xhook.h"
+#include "xhook/xhook.h"
 
 struct {
     JavaVM *vm;
