@@ -101,7 +101,7 @@ void handleDumpByDexFile(void *dex_file) {
         if (fd >= 0) {
             size_t written = 0;
             while (written < size) {
-                ssize_t w = write(fd, buffer + written, size - written);
+                ssize_t w = write(fd, (char *) buffer + written, size - written);
                 if (w <= 0) {
                     break;
                 }
@@ -314,7 +314,7 @@ void DexDump::cookieDumpDex(JNIEnv *env, jlong cookie, jstring dir, jboolean fix
     if (fd >= 0) {
         size_t written = 0;
         while (written < size) {
-            ssize_t w = write(fd, buffer + written, size - written);
+            ssize_t w = write(fd, (char *) buffer + written, size - written);
             if (w <= 0) {
                 break;
             }
