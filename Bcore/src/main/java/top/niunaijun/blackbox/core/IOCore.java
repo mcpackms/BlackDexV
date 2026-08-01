@@ -122,6 +122,11 @@ public class IOCore {
         for (String key : rule.keySet()) {
             get().addRedirect(key, rule.get(key));
         }
+        // 缓存目录供 native 层生成"净化后的 /proc/self/maps"，必须在 enableIO（native hook 安装）前设置
+        File cacheDir = BlackBoxCore.getContext().getCacheDir();
+        if (cacheDir != null) {
+            VMCore.setProcHideDir(cacheDir.getAbsolutePath());
+        }
         VMCore.enableIO();
     }
 }

@@ -11,6 +11,8 @@
 #include <hook/ProcessHook.h>
 #include <hook/VMClassLoaderHook.h>
 #include <hook/UnixFileSystemHook.h>
+#include <hook/DebugHook.h>
+#include <hook/ProcHideHook.h>
 #include "DexDump.h"
 #include "utils/HexDump.h"
 #include "xhook/xhook.h"
@@ -146,6 +148,8 @@ void nativeHook(JNIEnv *env) {
     UnixFileSystemHook::init(env);
 //    VMClassLoaderHook::init(env);
     ProcessHook::init(env);
+    DebugHook::init(env);
+    ProcHideHook::init(env);
 }
 
 void hideXposed(JNIEnv *env, jclass clazz) {
@@ -182,6 +186,14 @@ void enableIO(JNIEnv *env, jclass clazz) {
     nativeHook(env);
 }
 
+void setProcHideDir(JNIEnv *env, jclass clazz, jstring dir) {
+    const char *dirC = env->GetStringUTFChars(dir, nullptr);
+    if (dirC != nullptr) {
+        ProcHideHook::setCacheDir(dirC);
+        env->ReleaseStringUTFChars(dir, dirC);
+    }
+}
+
 void hookDumpDex(JNIEnv *env, jobject clazz, jstring dir) {
     DexDump::hookDumpDex(env, dir);
 }
@@ -194,6 +206,7 @@ static JNINativeMethod gMethods[] = {
         {"hideXposed",      "()V",                                     (void *) hideXposed},
         {"addIORule",       "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",        "()V",                                     (void *) enableIO},
+        {"setProcHideDir",  "(Ljava/lang/String;)V",                   (void *) setProcHideDir},
         {"init",            "(I)V",                                    (void *) init},
         {"hookDumpDex",     "(Ljava/lang/String;)V",                   (void *) hookDumpDex},
         {"cookieDumpDex",   "(JLjava/lang/String;Z)V",                 (void *) cookieDumpDex},

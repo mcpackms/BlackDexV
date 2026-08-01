@@ -44,6 +44,8 @@ public class VMCore {
 
     public static native void enableIO();
 
+    public static native void setProcHideDir(String dir);
+
     public static native void addIORule(String targetPath, String relocatePath);
 
     public static native void hideXposed();
