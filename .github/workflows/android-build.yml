@@ -9,30 +9,31 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.flavor }}
+    name: Build BlackDex64
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # BlackDex32 / BlackDex64 为 app/build.gradle 中定义的两个 productFlavor
-        flavor: [ BlackDex32, BlackDex64 ]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
-        # AGP 4.2.0 + Gradle 6.7.1 要求 JDK 8/11，JDK 17 无法构建。
-        # 注意：不能使用 android-actions/setup-android，它下载的 cmdline-tools 16.0
-        # 要求 JDK 17，与这里冲突；ubuntu runner 已预装完整 Android SDK，直接使用即可。
+      # sdkmanager (cmdline-tools 12+) 要求 JDK 17；AGP 4.2.0 + Gradle 6.7.1 要求 JDK 11。
+      # 因此装两个 JDK：sdkmanager 用 17，Gradle 用 11（最后一个 setup-java 设置默认 JAVA_HOME）。
+      - name: Set up JDK 17 (for sdkmanager)
         uses: actions/setup-java@v4
+        id: jdk17
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up JDK 11 (for Gradle)
+        uses: actions/setup-java@v4
+        id: jdk11
         with:
           distribution: 'temurin'
           java-version: '11'
 
       - name: Configure Android SDK
         # ubuntu-latest 镜像预装 SDK 于 /usr/local/lib/android/sdk
-        # （含 platforms;android-30 / build-tools;30.0.3 / ndk;21.4.7075529 / cmake;3.10.2）
         shell: bash
         run: |
           SDK=/usr/local/lib/android/sdk
@@ -42,22 +43,14 @@ jobs:
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
 
       - name: Ensure SDK packages
-        # 兜底：若镜像缺包则用预装 sdkmanager 补齐。
-        # SKIP_JDK_VERSION_CHECK 兼容新版本 sdkmanager 对 JDK 17 的要求。
+        # 幂等安装：已安装的包会被 sdkmanager 跳过，不会重复下载
         shell: bash
+        env:
+          JAVA_HOME: ${{ steps.jdk17.outputs.path }}
         run: |
           set -e
-          export SKIP_JDK_VERSION_CHECK=true
-          sdkmanager --licenses > /dev/null 2>&1 || true
-          installed=$(sdkmanager --list_installed 2>/dev/null || true)
-          for pkg in "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529" "cmake;3.10.2.4988404"; do
-            if ! echo "$installed" | grep -qF "$pkg"; then
-              echo "Installing missing SDK package: $pkg"
-              sdkmanager "$pkg" > /dev/null 2>&1
-            else
-              echo "SDK package present: $pkg"
-            fi
-          done
+          sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529" "cmake;3.10.2.4988404" "platform-tools"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -69,11 +62,19 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}
 
+      - name: Cache NDK & CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk
+            /usr/local/lib/android/sdk/cmake
+          key: ndk-${{ runner.os }}-21.4.7075529
+
       - name: Build APK
         run: |
           chmod +x gradlew
           # -x lint / -x lintVitalRelease：跳过 lint，防止 lint 致命项阻塞构建
-          ./gradlew assemble${{ matrix.flavor }}Release \
+          ./gradlew assembleBlackDex64Release \
             --no-daemon \
             -x lint \
             -x lintVitalRelease \
@@ -82,7 +83,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BlackDex-${{ matrix.flavor }}-release
-          path: app/build/outputs/apk/${{ matrix.flavor }}/release/*.apk
+          name: BlackDex64-release
+          path: app/build/outputs/apk/BlackDex64/release/*.apk
           if-no-files-found: error
           compression-level: 0

@@ -17,18 +17,11 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        flavorDimensions "BlackDex32"
+        flavorDimensions "BlackDex"
     }
 
     productFlavors {
-        BlackDex32 {
-            applicationId "top.niunaijun.blackdexa32"
-            ndk {
-                abiFilters "armeabi-v7a"
-            }
-            resValue "string", "app_name", "BlackDex32"
-        }
-
+        // 仅保留 64 位
         BlackDex64 {
             applicationId "top.niunaijun.blackdexa64"
             ndk {
