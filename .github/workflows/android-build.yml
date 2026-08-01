@@ -73,11 +73,9 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          # -x lint / -x lintVitalRelease：跳过 lint，防止 lint 致命项阻塞构建
+          # lint 已在 build.gradle 中配置 abortOnError=false，无需 -x 排除
           ./gradlew assembleBlackDex64Release \
             --no-daemon \
-            -x lint \
-            -x lintVitalRelease \
             --stacktrace
 
       - name: Upload APK
