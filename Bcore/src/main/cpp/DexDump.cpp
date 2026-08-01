@@ -47,7 +47,9 @@ static const size_t kMaxDexSize = 512 * 1024 * 1024;
 
 static int beginOffset = -2;
 static std::string dumpPath;
-std::list<size_t> dumped;
+// 按 DexFile::Begin() 指针去重：同 dex 多次触发 LoadMethod 时防刷屏，
+// 但两个不同 dex 恰好同 size 时不会互相误伤（抽取壳常见场景）
+static std::list<const void *> dumped;
 std::mutex dumpedMutex;
 
 void handleDumpByDexFile(void *dex_file) {
@@ -58,10 +60,11 @@ void handleDumpByDexFile(void *dex_file) {
     auto dexFile = static_cast<art_lkchan::DexFile *>(dex_file);
 
     size_t size = dexFile->Size();
+    const void *begin = dexFile->Begin();
     {
         std::lock_guard<std::mutex> lock(dumpedMutex);
-        for (size_t value : dumped) {
-            if (size == value) {
+        for (const void *value : dumped) {
+            if (begin == value) {
                 return;
             }
         }
@@ -96,7 +99,7 @@ void handleDumpByDexFile(void *dex_file) {
         }
 
         char path[1024];
-        sprintf(path, "%s/hook_%zu.dex", dumpPath.c_str(), size);
+        snprintf(path, sizeof(path), "%s/hook_%zu.dex", dumpPath.c_str(), size);
         auto fd = open(path, O_CREAT | O_WRONLY, 0600);
         if (fd >= 0) {
             size_t written = 0;
@@ -118,7 +121,7 @@ void handleDumpByDexFile(void *dex_file) {
         free(buffer);
         {
             std::lock_guard<std::mutex> lock(dumpedMutex);
-            dumped.push_back(size);
+            dumped.push_back(begin);
         }
     }
 }
@@ -309,7 +312,7 @@ void DexDump::cookieDumpDex(JNIEnv *env, jlong cookie, jstring dir, jboolean fix
         fixCodeItem(env, dex_files[0].get(), begin);
     }
     char path[1024];
-    sprintf(path, "%s/cookie_%zu.dex", dirC, size);
+    snprintf(path, sizeof(path), "%s/cookie_%zu.dex", dirC, size);
     auto fd = open(path, O_CREAT | O_WRONLY, 0600);
     if (fd >= 0) {
         size_t written = 0;
